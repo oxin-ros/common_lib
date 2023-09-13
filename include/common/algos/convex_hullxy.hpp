@@ -145,9 +145,14 @@ class ConvexHull2DXY : public pcl::ConvexHull<PointT> {
                 static_cast<coordT>(input_->points[(*indices_)[i]].y);
         }
 
+        qhT qh_qh;
+        qhT* qh = &qh_qh;
+        QHULL_LIB_CHECK
+        qh_zero(qh, errfile);
+
         // Compute convex hull
         int exitcode =
-            qh_new_qhull(dimension, static_cast<int>(indices_->size()), points,
+            qh_new_qhull(qh, dimension, static_cast<int>(indices_->size()), points,
                          ismalloc, const_cast<char *>(flags), outfile, errfile);
 #ifdef HAVE_QHULL_2011
         if (compute_area_) {
@@ -156,7 +161,7 @@ class ConvexHull2DXY : public pcl::ConvexHull<PointT> {
 #endif
 
         // 0 if no error from qhull or it doesn't find any vertices
-        if (exitcode != 0 || qh num_vertices == 0) {
+        if (exitcode != 0 || qh->num_vertices == 0) {
             PCL_ERROR(
                 "[pcl::%s::performReconstrution2D] "
                 "ERROR: qhull was unable to compute "
@@ -168,19 +173,19 @@ class ConvexHull2DXY : public pcl::ConvexHull<PointT> {
             hull->width = hull->height = 0;
             polygons->resize(0);
 
-            qh_freeqhull(!qh_ALL);
+            qh_freeqhull(qh, !qh_ALL);
             int curlong, totlong;
-            qh_memfreeshort(&curlong, &totlong);
+            qh_memfreeshort(qh, &curlong, &totlong);
             return;
         }
 
         // Qhull returns the area in volume for 2D
         if (compute_area_) {
-            total_area_ = qh totvol;
+            total_area_ = qh->totvol;
             total_volume_ = 0.0;
         }
 
-        int num_vertices = qh num_vertices;
+        int num_vertices = qh->num_vertices;
         hull->points.resize(num_vertices);
         memset(&hull->points[0], static_cast<int>(hull->points.size()),
                sizeof(PointT));
@@ -197,8 +202,8 @@ class ConvexHull2DXY : public pcl::ConvexHull<PointT> {
 
         FORALLvertices {
             hull->points[i] =
-                input_->points[(*indices_)[qh_pointid(vertex->point)]];
-            idx_points[i].first = qh_pointid(vertex->point);
+                input_->points[(*indices_)[qh_pointid(qh, vertex->point)]];
+            idx_points[i].first = qh_pointid(qh, vertex->point);
             ++i;
         }
 
@@ -220,9 +225,9 @@ class ConvexHull2DXY : public pcl::ConvexHull<PointT> {
             (*polygons)[0].vertices[j] = static_cast<unsigned int>(j);
         }
 
-        qh_freeqhull(!qh_ALL);
+        qh_freeqhull(qh, !qh_ALL);
         int curlong, totlong;
-        qh_memfreeshort(&curlong, &totlong);
+        qh_memfreeshort(qh, &curlong, &totlong);
 
         hull->width = static_cast<uint32_t>(hull->points.size());
         hull->height = 1;
